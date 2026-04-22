@@ -14,6 +14,10 @@ from app.gateway.routers import (
     mcp,
     memory,
     models,
+<<<<<<< HEAD
+=======
+    review,
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
     runs,
     skills,
     suggestions,
@@ -129,6 +133,13 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
                 "description": "Access and download thread artifacts and generated files",
             },
             {
+<<<<<<< HEAD
+=======
+                "name": "review",
+                "description": "Browse a thread's persisted workspace as a file tree",
+            },
+            {
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
                 "name": "uploads",
                 "description": "Upload and manage user files for threads",
             },
@@ -181,6 +192,12 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
     # Artifacts API is mounted at /api/threads/{thread_id}/artifacts
     app.include_router(artifacts.router)
 
+<<<<<<< HEAD
+=======
+    # Review API is mounted at /api/threads/{thread_id}/review/tree
+    app.include_router(review.router)
+
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
     # Uploads API is mounted at /api/threads/{thread_id}/uploads
     app.include_router(uploads.router)
 

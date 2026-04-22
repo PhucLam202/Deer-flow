@@ -11,6 +11,8 @@ import {
 } from "@/components/workspace/chats";
 import { ExportTrigger } from "@/components/workspace/export-trigger";
 import { InputBox } from "@/components/workspace/input-box";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   MessageList,
   MESSAGE_LIST_DEFAULT_PADDING_BOTTOM,
@@ -86,7 +88,7 @@ export default function ChatPage() {
 
   const messageListPaddingBottom = showFollowups
     ? MESSAGE_LIST_DEFAULT_PADDING_BOTTOM +
-      MESSAGE_LIST_FOLLOWUPS_EXTRA_PADDING_BOTTOM
+    MESSAGE_LIST_FOLLOWUPS_EXTRA_PADDING_BOTTOM
     : undefined;
 
   return (
@@ -105,6 +107,11 @@ export default function ChatPage() {
               <ThreadTitle threadId={threadId} thread={thread} />
             </div>
             <div className="flex items-center gap-2">
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/workspace/chats/${threadId}/review`}>
+                  Review
+                </Link>
+              </Button>
               <TokenUsageIndicator
                 enabled={tokenUsageEnabled}
                 messages={thread.messages}

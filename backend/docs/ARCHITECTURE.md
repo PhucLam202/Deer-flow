@@ -199,7 +199,11 @@ class ThreadState(AgentState):
 │   Built-in Tools    │  │  Configured Tools   │  │     MCP Tools       │
 │  (packages/harness/deerflow/tools/)       │  │  (config.yaml)      │  │  (extensions.json)  │
 ├─────────────────────┤  ├─────────────────────┤  ├─────────────────────┤
+<<<<<<< HEAD
 │ - present_files     │  │ - web_search        │  │ - github            │
+=======
+│ - present_file      │  │ - web_search        │  │ - github            │
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
 │ - ask_clarification │  │ - web_fetch         │  │ - filesystem        │
 │ - view_image        │  │ - bash              │  │ - postgres          │
 │                     │  │ - read_file         │  │ - brave-search      │

@@ -147,3 +147,16 @@ class DanglingToolCallMiddleware(AgentMiddleware[AgentState]):
         if patched is not None:
             request = request.override(messages=patched)
         return await handler(request)
+<<<<<<< HEAD
+=======
+
+
+def patch_dangling_tool_calls(messages: list) -> list | None:
+    """Backward-compatible helper for sanitizing dangling tool calls.
+
+    Some callers still import the old function-style API, so keep this wrapper
+    while the middleware class remains the primary implementation.
+    """
+    middleware = DanglingToolCallMiddleware()
+    return middleware._build_patched_messages(messages)
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)

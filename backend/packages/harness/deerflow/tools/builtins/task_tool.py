@@ -138,9 +138,27 @@ async def task_tool(
 
     logger.info(f"[trace={trace_id}] Started background task {task_id} (subagent={subagent_type}, timeout={config.timeout_seconds}s, polling_limit={max_poll_count} polls)")
 
+<<<<<<< HEAD
     writer = get_stream_writer()
     # Send Task Started message'
     writer({"type": "task_started", "task_id": task_id, "description": description})
+=======
+    try:
+        writer = get_stream_writer()
+    except Exception:
+        writer = None
+
+    def emit(event: dict) -> None:
+        if writer is None:
+            return
+        try:
+            writer(event)
+        except Exception:
+            logger.debug(f"[trace={trace_id}] Stream writer unavailable; dropping task event {event.get('type')}")
+
+    # Send Task Started message
+    emit({"type": "task_started", "task_id": task_id, "description": description})
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
 
     try:
         while True:
@@ -148,7 +166,11 @@ async def task_tool(
 
             if result is None:
                 logger.error(f"[trace={trace_id}] Task {task_id} not found in background tasks")
+<<<<<<< HEAD
                 writer({"type": "task_failed", "task_id": task_id, "error": "Task disappeared from background tasks"})
+=======
+                emit({"type": "task_failed", "task_id": task_id, "error": "Task disappeared from background tasks"})
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
                 cleanup_background_task(task_id)
                 return f"Error: Task {task_id} disappeared from background tasks"
 
@@ -163,7 +185,11 @@ async def task_tool(
                 # Send task_running event for each new message
                 for i in range(last_message_count, current_message_count):
                     message = result.ai_messages[i]
+<<<<<<< HEAD
                     writer(
+=======
+                    emit(
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
                         {
                             "type": "task_running",
                             "task_id": task_id,
@@ -177,22 +203,38 @@ async def task_tool(
 
             # Check if task completed, failed, or timed out
             if result.status == SubagentStatus.COMPLETED:
+<<<<<<< HEAD
                 writer({"type": "task_completed", "task_id": task_id, "result": result.result})
+=======
+                emit({"type": "task_completed", "task_id": task_id, "result": result.result})
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
                 logger.info(f"[trace={trace_id}] Task {task_id} completed after {poll_count} polls")
                 cleanup_background_task(task_id)
                 return f"Task Succeeded. Result: {result.result}"
             elif result.status == SubagentStatus.FAILED:
+<<<<<<< HEAD
                 writer({"type": "task_failed", "task_id": task_id, "error": result.error})
+=======
+                emit({"type": "task_failed", "task_id": task_id, "error": result.error})
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
                 logger.error(f"[trace={trace_id}] Task {task_id} failed: {result.error}")
                 cleanup_background_task(task_id)
                 return f"Task failed. Error: {result.error}"
             elif result.status == SubagentStatus.CANCELLED:
+<<<<<<< HEAD
                 writer({"type": "task_cancelled", "task_id": task_id, "error": result.error})
+=======
+                emit({"type": "task_cancelled", "task_id": task_id, "error": result.error})
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
                 logger.info(f"[trace={trace_id}] Task {task_id} cancelled: {result.error}")
                 cleanup_background_task(task_id)
                 return "Task cancelled by user."
             elif result.status == SubagentStatus.TIMED_OUT:
+<<<<<<< HEAD
                 writer({"type": "task_timed_out", "task_id": task_id, "error": result.error})
+=======
+                emit({"type": "task_timed_out", "task_id": task_id, "error": result.error})
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
                 logger.warning(f"[trace={trace_id}] Task {task_id} timed out: {result.error}")
                 cleanup_background_task(task_id)
                 return f"Task timed out. Error: {result.error}"
@@ -210,7 +252,11 @@ async def task_tool(
             if poll_count > max_poll_count:
                 timeout_minutes = config.timeout_seconds // 60
                 logger.error(f"[trace={trace_id}] Task {task_id} polling timed out after {poll_count} polls (should have been caught by thread pool timeout)")
+<<<<<<< HEAD
                 writer({"type": "task_timed_out", "task_id": task_id})
+=======
+                emit({"type": "task_timed_out", "task_id": task_id})
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
                 return f"Task polling timed out after {timeout_minutes} minutes. This may indicate the background task is stuck. Status: {result.status.value}"
     except asyncio.CancelledError:
         # Signal the background subagent thread to stop cooperatively.

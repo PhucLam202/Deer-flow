@@ -161,7 +161,11 @@ Lead-agent middlewares are assembled in strict append order across `packages/har
 1. **ThreadDataMiddleware** - Creates per-thread directories (`backend/.deer-flow/threads/{thread_id}/user-data/{workspace,uploads,outputs}`); Web UI thread deletion now follows LangGraph thread removal with Gateway cleanup of the local `.deer-flow/threads/{thread_id}` directory
 2. **UploadsMiddleware** - Tracks and injects newly uploaded files into conversation
 3. **SandboxMiddleware** - Acquires sandbox, stores `sandbox_id` in state
+<<<<<<< HEAD
 4. **DanglingToolCallMiddleware** - Injects placeholder ToolMessages for AIMessage tool_calls that lack responses (e.g., due to user interruption), including raw provider tool-call payloads preserved only in `additional_kwargs["tool_calls"]`
+=======
+4. **DanglingToolCallMiddleware** - Injects placeholder ToolMessages for AIMessage tool_calls that lack responses (e.g., due to user interruption), including raw provider tool-call payloads preserved only in `additional_kwargs["tool_calls"]`; the same repair helper is also reused by summarization and LLM error recovery so trimmed histories remain provider-safe
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
 5. **LLMErrorHandlingMiddleware** - Normalizes provider/model invocation failures into recoverable assistant-facing errors before later middleware/tool stages run
 6. **GuardrailMiddleware** - Pre-tool-call authorization via pluggable `GuardrailProvider` protocol (optional, if `guardrails.enabled` in config). Evaluates each tool call and returns error ToolMessage on deny. Three provider options: built-in `AllowlistProvider` (zero deps), OAP policy providers (e.g. `aport-agent-guardrails`), or custom providers. See [docs/GUARDRAILS.md](docs/GUARDRAILS.md) for setup, usage, and how to implement a provider.
 7. **SandboxAuditMiddleware** - Audits sandboxed shell/file operations for security logging before tool execution continues
@@ -532,7 +536,11 @@ See [docs/plan_mode_usage.md](docs/plan_mode_usage.md) for details.
 Automatic conversation summarization when approaching token limits:
 - Configured in `config.yaml` under `summarization` key
 - Trigger types: tokens, messages, or fraction of max input
+<<<<<<< HEAD
 - Keeps recent messages while summarizing older ones
+=======
+- Keeps recent messages while summarizing older ones, and repairs any preserved dangling tool-call pairs before the next provider request
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
 
 See [docs/summarization.md](docs/summarization.md) for details.
 

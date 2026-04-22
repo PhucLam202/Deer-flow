@@ -22,6 +22,10 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
+<<<<<<< HEAD
+=======
+from deerflow.agents.middlewares.dangling_tool_call_middleware import patch_dangling_tool_calls
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
 from deerflow.models.credential_loader import CodexCliCredential, load_codex_cli_credential
 
 logger = logging.getLogger(__name__)
@@ -111,6 +115,10 @@ class CodexChatModel(BaseChatModel):
 
         Returns (instructions, input_items).
         """
+<<<<<<< HEAD
+=======
+        messages = patch_dangling_tool_calls(messages) or messages
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
         instructions_parts: list[str] = []
         input_items = []
 

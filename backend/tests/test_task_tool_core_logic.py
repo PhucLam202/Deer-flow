@@ -174,6 +174,45 @@ def test_task_tool_emits_running_and_completed_events(monkeypatch):
     assert events[-1]["result"] == "all done"
 
 
+<<<<<<< HEAD
+=======
+def test_task_tool_works_without_stream_writer(monkeypatch):
+    """The task tool should still complete when no stream writer is available."""
+    config = _make_subagent_config()
+    runtime = _make_runtime()
+
+    class DummyExecutor:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute_async(self, prompt, task_id=None):
+            return task_id or "generated-task-id"
+
+    monkeypatch.setattr(task_tool_module, "SubagentStatus", FakeSubagentStatus)
+    monkeypatch.setattr(task_tool_module, "SubagentExecutor", DummyExecutor)
+    monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "")
+    monkeypatch.setattr(
+        task_tool_module,
+        "get_background_task_result",
+        lambda _: _make_result(FakeSubagentStatus.COMPLETED, result="ok"),
+    )
+    monkeypatch.setattr(task_tool_module, "get_stream_writer", lambda: None)
+    monkeypatch.setattr(task_tool_module.asyncio, "sleep", _no_sleep)
+    monkeypatch.setattr("deerflow.tools.get_available_tools", lambda **kwargs: [])
+
+    output = _run_task_tool(
+        runtime=runtime,
+        description="执行任务",
+        prompt="normal work",
+        subagent_type="general-purpose",
+        tool_call_id="tc-no-writer",
+    )
+
+    assert output == "Task Succeeded. Result: ok"
+
+
+>>>>>>> 3be2dcf7 (feat: scaffold full-stack infrastructure for deer-flow including agent framework, backend services, frontend components, and public skill definitions.)
 def test_task_tool_propagates_tool_groups_to_subagent(monkeypatch):
     """Verify tool_groups from parent metadata are passed to get_available_tools(groups=...)."""
     config = _make_subagent_config()

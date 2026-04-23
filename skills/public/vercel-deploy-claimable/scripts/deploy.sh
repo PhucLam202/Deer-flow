@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# Vercel Deployment Script (via claimable deploy endpoint)
+# Vercel Deployment Script
 # Usage: ./deploy.sh [project-path]
-# Returns: JSON with previewUrl, claimUrl, deploymentId, projectId
+# Prefers the claimable deploy endpoint and falls back to the Vercel CLI when
+# the endpoint is unavailable or no longer returns deployment URLs.
 
-set -e
+set -euo pipefail
 
 DEPLOY_ENDPOINT="https://claude-skills-deploy.vercel.com/api/deploy"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Detect framework from package.json
 detect_framework() {
@@ -170,6 +172,122 @@ cleanup() {
 }
 trap cleanup EXIT
 
+extract_json_value() {
+    local key="$1"
+    local json="$2"
+    printf '%s' "$json" | grep -o "\"$key\":\"[^\"]*\"" | head -1 | cut -d'"' -f4
+}
+
+find_token_file() {
+    local project_path_safe
+    local candidate
+    project_path_safe="${PROJECT_PATH:-}"
+    for candidate in \
+        "${VERCEL_TOKEN_FILE:-}" \
+        "$project_path_safe/.env" \
+        "$project_path_safe/.env.local" \
+        "$PWD/.env" \
+        "$PWD/.env.local" \
+        "$SCRIPT_DIR/../.env"
+    do
+        if [ -n "${candidate:-}" ] && [ -f "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+load_vercel_token() {
+    if [ -n "${VERCEL_TOKEN:-}" ]; then
+        return 0
+    fi
+
+    local token_file
+    if token_file=$(find_token_file); then
+        local token_line
+        token_line=$(grep -E '^[[:space:]]*VERCEL_TOKEN=' "$token_file" | tail -1 || true)
+        if [ -n "$token_line" ]; then
+            VERCEL_TOKEN="${token_line#*=}"
+            VERCEL_TOKEN="${VERCEL_TOKEN%\"}"
+            VERCEL_TOKEN="${VERCEL_TOKEN#\"}"
+            export VERCEL_TOKEN
+            echo "Loaded VERCEL_TOKEN from $token_file" >&2
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+print_cli_setup_help() {
+    cat >&2 <<'EOF'
+Vercel CLI fallback requires authentication.
+
+Setup steps:
+1. Install the CLI:
+   pnpm add -g vercel
+   # or: npm install -g vercel
+2. Provide a token:
+   export VERCEL_TOKEN=your_vercel_token
+   # or add VERCEL_TOKEN=... to .env / .env.local
+3. Run the deploy script again.
+
+You can create a token at https://vercel.com/account/tokens
+EOF
+}
+
+deploy_with_vercel_cli() {
+    echo "Falling back to Vercel CLI..." >&2
+
+    if ! command -v vercel >/dev/null 2>&1; then
+        echo "Error: Vercel CLI is not installed." >&2
+        print_cli_setup_help
+        exit 1
+    fi
+
+    if ! load_vercel_token; then
+        echo "Error: VERCEL_TOKEN is not set for Vercel CLI fallback." >&2
+        print_cli_setup_help
+        exit 1
+    fi
+
+    local deploy_target="$PROJECT_PATH"
+    if [ -z "${deploy_target:-}" ]; then
+        deploy_target="$TEMP_DIR/cli-project"
+        mkdir -p "$deploy_target"
+        tar -xzf "$TARBALL" -C "$deploy_target"
+    fi
+
+    local cli_stdout cli_stderr exit_code preview_url escaped_url
+    cli_stdout="$TEMP_DIR/vercel.stdout"
+    cli_stderr="$TEMP_DIR/vercel.stderr"
+    exit_code=0
+    vercel --cwd "$deploy_target" --token "$VERCEL_TOKEN" --yes >"$cli_stdout" 2>"$cli_stderr" || exit_code=$?
+
+    if [ "$exit_code" -ne 0 ]; then
+        echo "Error: Vercel CLI deployment failed." >&2
+        cat "$cli_stderr" >&2
+        exit "$exit_code"
+    fi
+
+    preview_url=$(tr -d '\r' <"$cli_stdout" | tail -1)
+    if [ -z "$preview_url" ]; then
+        echo "Error: Vercel CLI did not return a deployment URL." >&2
+        cat "$cli_stderr" >&2
+        exit 1
+    fi
+
+    echo "" >&2
+    echo "Deployment successful via Vercel CLI!" >&2
+    echo "" >&2
+    echo "Preview URL: $preview_url" >&2
+    echo "" >&2
+
+    escaped_url=$(printf '%s' "$preview_url" | sed 's/"/\\"/g')
+    printf '{"previewUrl":"%s","claimUrl":"","deploymentId":"","projectId":"","deploymentMethod":"vercel-cli"}\n' "$escaped_url"
+}
+
 echo "Preparing deployment..." >&2
 
 # Check if input is a .tgz file or a directory
@@ -219,23 +337,40 @@ fi
 
 # Deploy
 echo "Deploying..." >&2
-RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" -F "file=@$TARBALL" -F "framework=$FRAMEWORK")
+RESPONSE=""
+CURL_EXIT_CODE=0
+
+if [ "${FORCE_VERCEL_CLI:-0}" = "1" ]; then
+    deploy_with_vercel_cli
+    exit 0
+fi
+
+if ! RESPONSE=$(curl -s -X POST "$DEPLOY_ENDPOINT" -F "file=@$TARBALL" -F "framework=$FRAMEWORK"); then
+    CURL_EXIT_CODE=$?
+fi
 
 # Check for error in response
 if echo "$RESPONSE" | grep -q '"error"'; then
     ERROR_MSG=$(echo "$RESPONSE" | grep -o '"error":"[^"]*"' | cut -d'"' -f4)
     echo "Error: $ERROR_MSG" >&2
-    exit 1
+    echo "Claimable deploy failed, trying Vercel CLI fallback..." >&2
+    deploy_with_vercel_cli
+    exit 0
 fi
 
 # Extract URLs from response
-PREVIEW_URL=$(echo "$RESPONSE" | grep -o '"previewUrl":"[^"]*"' | cut -d'"' -f4)
-CLAIM_URL=$(echo "$RESPONSE" | grep -o '"claimUrl":"[^"]*"' | cut -d'"' -f4)
+PREVIEW_URL=$(extract_json_value "previewUrl" "$RESPONSE")
+CLAIM_URL=$(extract_json_value "claimUrl" "$RESPONSE")
 
-if [ -z "$PREVIEW_URL" ]; then
-    echo "Error: Could not extract preview URL from response" >&2
-    echo "$RESPONSE" >&2
-    exit 1
+if [ "$CURL_EXIT_CODE" -ne 0 ] || [ -z "$PREVIEW_URL" ]; then
+    if [ "$CURL_EXIT_CODE" -ne 0 ]; then
+        echo "Claimable deploy endpoint request failed (curl exit code $CURL_EXIT_CODE)." >&2
+    else
+        echo "Claimable deploy endpoint did not return a preview URL." >&2
+        echo "$RESPONSE" >&2
+    fi
+    deploy_with_vercel_cli
+    exit 0
 fi
 
 echo "" >&2

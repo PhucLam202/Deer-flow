@@ -1,21 +1,25 @@
 ---
 name: vercel-deploy
-description: Deploy applications and websites to Vercel. Use this skill when the user requests deployment actions such as "Deploy my app", "Deploy this to production", "Create a preview deployment", "Deploy and give me the link", or "Push this live". No authentication required - returns preview URL and claimable deployment link.
+description: Deploy applications and websites to Vercel. Use this skill when the user requests deployment actions such as "Deploy my app", "Deploy this to production", "Create a preview deployment", "Deploy and give me the link", or "Push this live". Prefers the claimable deploy endpoint and falls back to the Vercel CLI when needed.
 metadata:
   author: vercel
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Vercel Deploy
 
-Deploy any project to Vercel instantly. No authentication required.
+Deploy any project to Vercel with a two-step strategy:
+
+1. Try the claimable deploy endpoint first
+2. Fall back to the Vercel CLI if the endpoint fails, changes behavior, or no longer returns deployment URLs
 
 ## How It Works
 
 1. Packages your project into a tarball (excludes `node_modules` and `.git`)
 2. Auto-detects framework from `package.json`
-3. Uploads to deployment service
-4. Returns **Preview URL** (live site) and **Claim URL** (transfer to your Vercel account)
+3. Uploads to the claimable deployment service
+4. If the claimable service is unavailable, deploys with `vercel --yes --token ...`
+5. Returns a **Preview URL**. Claim URL is only available when the claimable endpoint succeeds.
 
 ## Usage
 
@@ -25,6 +29,11 @@ bash /mnt/skills/public/vercel-deploy-claimable/scripts/deploy.sh [path]
 
 **Arguments:**
 - `path` - Directory to deploy, or a `.tgz` file (defaults to current directory)
+
+**Optional environment variables:**
+- `FORCE_VERCEL_CLI=1` - Skip the claimable endpoint and deploy with the Vercel CLI directly
+- `VERCEL_TOKEN=...` - Required for CLI fallback
+- `VERCEL_TOKEN_FILE=/path/to/.env` - Optional custom file to load `VERCEL_TOKEN` from
 
 **Examples:**
 
@@ -52,6 +61,22 @@ Preview URL: https://skill-deploy-abc123.vercel.app
 Claim URL:   https://vercel.com/claim-deployment?code=...
 ```
 
+If CLI fallback is used:
+
+```
+Preparing deployment...
+Detected framework: nextjs
+Creating deployment package...
+Deploying...
+Claimable deploy endpoint did not return a preview URL.
+Falling back to Vercel CLI...
+Loaded VERCEL_TOKEN from .env
+
+Deployment successful via Vercel CLI!
+
+Preview URL: https://my-project-git-main-abc123.vercel.app
+```
+
 The script also outputs JSON to stdout for programmatic use:
 
 ```json
@@ -59,7 +84,20 @@ The script also outputs JSON to stdout for programmatic use:
   "previewUrl": "https://skill-deploy-abc123.vercel.app",
   "claimUrl": "https://vercel.com/claim-deployment?code=...",
   "deploymentId": "dpl_...",
-  "projectId": "prj_..."
+  "projectId": "prj_...",
+  "deploymentMethod": "claimable-endpoint"
+}
+```
+
+CLI fallback returns:
+
+```json
+{
+  "previewUrl": "https://my-project-git-main-abc123.vercel.app",
+  "claimUrl": "",
+  "deploymentId": "",
+  "projectId": "",
+  "deploymentMethod": "vercel-cli"
 }
 ```
 
@@ -85,7 +123,7 @@ For projects without a `package.json`:
 
 ## Present Results to User
 
-Always show both URLs:
+Always show the Preview URL. Only show the Claim URL when it exists:
 
 ```
 ✓ Deployment successful!
@@ -97,7 +135,47 @@ View your site at the Preview URL.
 To transfer this deployment to your Vercel account, visit the Claim URL.
 ```
 
+When fallback uses the Vercel CLI, say clearly that the deployment was created with the user's authenticated Vercel account and there may be no claim URL.
+
 ## Troubleshooting
+
+### Claimable Endpoint No Longer Deploys
+
+If the endpoint returns guidance to use the CLI, or does not return `previewUrl`, use the CLI fallback:
+
+```bash
+pnpm add -g vercel
+export VERCEL_TOKEN=your_vercel_token
+bash /mnt/skills/public/vercel-deploy-claimable/scripts/deploy.sh /path/to/project
+```
+
+The script will automatically switch to the CLI when needed.
+
+### CLI Fallback Setup
+
+Install the Vercel CLI with one of:
+
+```bash
+pnpm add -g vercel
+# or
+npm install -g vercel
+```
+
+Provide a token in one of these ways:
+
+```bash
+export VERCEL_TOKEN=your_vercel_token
+```
+
+or add it to `.env` / `.env.local`:
+
+```bash
+VERCEL_TOKEN=your_vercel_token
+```
+
+Create a token at:
+
+`https://vercel.com/account/tokens`
 
 ### Network Egress Error
 
